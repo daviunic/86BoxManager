@@ -18,9 +18,10 @@ namespace _86boxManager
 
         private void dlgSettings_Load(object sender, EventArgs e)
         {
-            LoadSettings();
-            Get86BoxVersion();
+            ApplicationSettings.LoadSettings();
 
+            UpdateControlsToFitSettings();
+            Display86BoxVersion();
             lblVersion1.Text = Application.ProductVersion.Substring(0, Application.ProductVersion.Length - 2);
 
             #if DEBUG
@@ -28,16 +29,43 @@ namespace _86boxManager
             #endif
         }
 
+        /// <summary>
+        /// Update the controls to fit the new settings in the static Settings class.
+        /// </summary>
+        private void UpdateControlsToFitSettings()
+        {
+            // Would this work with WinForms' limited data binding?
+            txtEXEdir.Text = ApplicationSettings.EXEDir;
+            txtCFGdir.Text = ApplicationSettings.CFGDir;
+
+            btnBrowse3.Enabled = ApplicationSettings.EnableLogging;
+            txtLogPath.Enabled = ApplicationSettings.EnableLogging;
+
+            if (ApplicationSettings.EnableLogging)
+            {
+                txtLogPath.Text = ApplicationSettings.LogPath;
+            }
+
+            txtLaunchTimeout.Text = ApplicationSettings.LaunchTimeout;
+            cbxMinimize.Checked = ApplicationSettings.MinimizeToTray;
+            cbxShowConsole.Checked = ApplicationSettings.ShowConsole;
+            cbxMinimizeTray.Checked = ApplicationSettings.MinimizeToTray;
+            cbxCloseTray.Checked = ApplicationSettings.CloseToTray;
+            cbxLogging.Checked = ApplicationSettings.EnableLogging;
+            cbxGrid.Checked = ApplicationSettings.EnableGridLines;
+        }
+
         private void dlgSettings_FormClosing(object sender, FormClosingEventArgs e)
         {
             //Unsaved changes, ask the user to confirm
-            if (settingsChanged == true)
+            if (settingsChanged)
             {
                 e.Cancel = true;
                 DialogResult result = MessageBox.Show("Would you like to save the changes you've made to the settings?", "Unsaved changes", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
                 if (result == DialogResult.Yes)
                 {
-                    SaveSettings();
+                    ApplicationSettings.SaveSettings();
+                    
                 }
                 if (result != DialogResult.Cancel)
                 {
@@ -53,21 +81,28 @@ namespace _86boxManager
 
         private void btnApply_Click(object sender, EventArgs e)
         {
-            bool success = SaveSettings();
+            bool success = ApplicationSettings.SaveSettings();
+
             if (!success)
             {
                 return;
             }
-            settingsChanged = CheckForChanges();
-            btnApply.Enabled = settingsChanged;
+            else
+            {
+                Display86BoxVersion();
+                settingsChanged = ApplicationSettings.CheckForChanges();
+                btnApply.Enabled = settingsChanged;
+            }
+
         }
 
         private void btnOK_Click(object sender, EventArgs e)
         {
             if (settingsChanged)
             {
-                SaveSettings();
+                ApplicationSettings.SaveSettings();
             }
+
             Close();
         }
 
@@ -80,16 +115,22 @@ namespace _86boxManager
             }
             else
             {
-                settingsChanged = CheckForChanges();
+                // may need to be done
+                ApplicationSettings.LaunchTimeout = txtLaunchTimeout.Text;
+                ApplicationSettings.EXEDir = txtEXEdir.Text;
+                ApplicationSettings.CFGDir = txtCFGdir.Text; 
+                settingsChanged = ApplicationSettings.CheckForChanges();
                 btnApply.Enabled = settingsChanged;
             }
         }
 
         //Obtains the 86Box version from 86Box.exe
-        private void Get86BoxVersion()
+        private void Display86BoxVersion()
         {
             try
             {
+                FileVersionInfo VI = ApplicationSettings.Get86BoxVersion(); 
+
                 FileVersionInfo vi = FileVersionInfo.GetVersionInfo(txtEXEdir.Text + @"\86Box.exe");
                 if (vi.FilePrivatePart >= 2008) //Officially supported builds
                 {
@@ -107,137 +148,13 @@ namespace _86boxManager
                     lbl86BoxVer1.ForeColor = Color.Red;
                 }
             }
-            catch(FileNotFoundException ex)
+            catch (FileNotFoundException)
             {
-                lbl86BoxVer1.Text = "86Box.exe not found";
+                lbl86BoxVer1.Text = "86Box.exe not found!";
                 lbl86BoxVer1.ForeColor = Color.Gray;
             }
         }
         
-        //TODO: Rewrite
-        //Save the settings to the registry
-        private bool SaveSettings()
-        {
-            if (cbxLogging.Checked && string.IsNullOrWhiteSpace(txtLogPath.Text))
-            {
-                DialogResult result = MessageBox.Show("Using an empty or whitespace string for the log path will prevent 86Box from logging anything. Are you sure you want to use this path?", "Warning", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
-                if (result == DialogResult.No)
-                {
-                    return false;
-                }
-            }
-            if (!File.Exists(txtEXEdir.Text + "86Box.exe") && !File.Exists(txtEXEdir.Text + @"\86Box.exe"))
-            {
-                DialogResult result = MessageBox.Show("86Box.exe could not be found in the directory you specified, so you won't be able to use any virtual machines. Are you sure you want to use this path?", "Warning", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
-                if (result == DialogResult.No)
-                {
-                    return false;
-                }
-            }
-            try
-            {
-                RegistryKey regkey = Registry.CurrentUser.OpenSubKey(@"SOFTWARE\86Box", true); //Try to open the key first (in read-write mode) to see if it already exists
-                if (regkey == null) //Regkey doesn't exist yet, must be created first and then reopened
-                {
-                    Registry.CurrentUser.CreateSubKey(@"SOFTWARE\86Box");
-                    regkey = Registry.CurrentUser.OpenSubKey(@"SOFTWARE\86Box", true);
-                    regkey.CreateSubKey("Virtual Machines");
-                }
-
-                //Store the new values, close the key, changes are saved
-                regkey.SetValue("EXEdir", txtEXEdir.Text, RegistryValueKind.String);
-                regkey.SetValue("CFGdir", txtCFGdir.Text, RegistryValueKind.String);
-                regkey.SetValue("MinimizeOnVMStart", cbxMinimize.Checked, RegistryValueKind.DWord);
-                regkey.SetValue("ShowConsole", cbxShowConsole.Checked, RegistryValueKind.DWord);
-                regkey.SetValue("MinimizeToTray", cbxMinimizeTray.Checked, RegistryValueKind.DWord);
-                regkey.SetValue("CloseToTray", cbxCloseTray.Checked, RegistryValueKind.DWord);
-                regkey.SetValue("LaunchTimeout", Convert.ToInt32(txtLaunchTimeout.Text), RegistryValueKind.DWord);
-                regkey.SetValue("EnableLogging", cbxLogging.Checked, RegistryValueKind.DWord);
-                regkey.SetValue("LogPath", txtLogPath.Text, RegistryValueKind.String);
-                regkey.SetValue("EnableGridLines", cbxGrid.Checked, RegistryValueKind.DWord);
-                regkey.Close();
-
-                settingsChanged = CheckForChanges();
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("An error has occurred. Please provide the following information to the developer:\n" + ex.Message + "\n" + ex.StackTrace, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                return false;
-            }
-            finally
-            {
-                Get86BoxVersion(); //Get the new exe version in any case
-            }
-            return true;
-        }
-
-        //TODO: Rewrite
-        //Read the settings from the registry
-        private void LoadSettings()
-        {
-            try
-            {
-                RegistryKey regkey = Registry.CurrentUser.OpenSubKey(@"SOFTWARE\86Box", false); //Open the key as read only
-
-                //If the key doesn't exist yet, fallback to defaults
-                if (regkey == null)
-                {
-                    MessageBox.Show("86Box Manager settings could not be loaded. This is normal if you're running 86Box Manager for the first time. Default values will be used.", "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-
-                    //Create the key and reopen it for write access
-                    Registry.CurrentUser.CreateSubKey(@"SOFTWARE\86Box");
-                    regkey = Registry.CurrentUser.OpenSubKey(@"SOFTWARE\86Box", true);
-                    regkey.CreateSubKey("Virtual Machines");
-
-                    txtCFGdir.Text = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile) + @"\86Box VMs\";
-                    txtEXEdir.Text = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86) + @"\86Box\";
-                    cbxMinimize.Checked = false;
-                    cbxShowConsole.Checked = true;
-                    cbxMinimizeTray.Checked = false;
-                    cbxCloseTray.Checked = false;
-                    cbxLogging.Checked = false;
-                    txtLaunchTimeout.Text = "5000";
-                    txtLogPath.Text = "";
-                    cbxGrid.Checked = false;
-                    btnBrowse3.Enabled = false;
-                    txtLogPath.Enabled = false;
-
-                    SaveSettings(); //This will write the default values to the registry
-                }
-                else
-                {
-                    txtEXEdir.Text = regkey.GetValue("EXEdir").ToString();
-                    txtCFGdir.Text = regkey.GetValue("CFGdir").ToString();
-                    txtLaunchTimeout.Text = regkey.GetValue("LaunchTimeout").ToString();
-                    txtLogPath.Text = regkey.GetValue("LogPath").ToString();
-                    cbxMinimize.Checked = Convert.ToBoolean(regkey.GetValue("MinimizeOnVMStart"));
-                    cbxShowConsole.Checked = Convert.ToBoolean(regkey.GetValue("ShowConsole"));
-                    cbxMinimizeTray.Checked = Convert.ToBoolean(regkey.GetValue("MinimizeToTray"));
-                    cbxCloseTray.Checked = Convert.ToBoolean(regkey.GetValue("CloseToTray"));
-                    cbxLogging.Checked = Convert.ToBoolean(regkey.GetValue("EnableLogging"));
-                    cbxGrid.Checked = Convert.ToBoolean(regkey.GetValue("EnableGridLines"));
-                    txtLogPath.Enabled = cbxLogging.Checked;
-                    btnBrowse3.Enabled = cbxLogging.Checked;
-                }
-
-                regkey.Close();
-            }
-            catch (Exception ex)
-            {
-                txtCFGdir.Text = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + @"\86Box VMs";
-                txtEXEdir.Text = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86) + @"\86Box";
-                cbxMinimize.Checked = false;
-                cbxShowConsole.Checked = true;
-                cbxMinimizeTray.Checked = false;
-                cbxCloseTray.Checked = false;
-                cbxLogging.Checked = false;
-                txtLaunchTimeout.Text = "5000";
-                txtLogPath.Text = "";
-                cbxGrid.Checked = false;
-                txtLogPath.Enabled = false;
-                btnBrowse3.Enabled = false;
-            }
-        }
 
 // .NET Core implements the better Vista-style folder browse dialog in the stock FolderBrowserDialog
 #if NETCOREAPP
@@ -322,78 +239,18 @@ namespace _86boxManager
             DialogResult result = MessageBox.Show("All settings will be reset to their default values. Do you wish to continue?", "Settings will be reset", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
             if (result == DialogResult.Yes)
             {
-                ResetSettings();
-            }
-        }
-
-        //Resets the settings to their default values
-        private void ResetSettings()
-        {
-            RegistryKey regkey = Registry.CurrentUser.OpenSubKey(@"SOFTWARE\86Box", true);
-            if (regkey == null)
-            {
-                Registry.CurrentUser.CreateSubKey(@"SOFTWARE\86Box");
-                regkey = Registry.CurrentUser.OpenSubKey(@"SOFTWARE\86Box", true);
-                regkey.CreateSubKey("Virtual Machines");
-            }
-            regkey.Close();
-
-            txtCFGdir.Text = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile) + @"\86Box VMs\";
-            txtEXEdir.Text = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86) + @"\86Box\";
-            cbxMinimize.Checked = false;
-            cbxShowConsole.Checked = true;
-            cbxMinimizeTray.Checked = false;
-            cbxCloseTray.Checked = false;
-            cbxLogging.Checked = false;
-            txtLaunchTimeout.Text = "5000";
-            txtLogPath.Text = "";
-            cbxGrid.Checked = false;
-            txtLogPath.Enabled = false;
-            btnBrowse3.Enabled = false;
-
-            settingsChanged = CheckForChanges();
-        }
-
-        //Checks if all controls match the currently saved settings to determine if any changes were made
-        private bool CheckForChanges()
-        {
-            RegistryKey regkey = Registry.CurrentUser.OpenSubKey(@"SOFTWARE\86Box");
-
-            try
-            {
-                btnApply.Enabled = (
-                    txtEXEdir.Text != regkey.GetValue("EXEdir").ToString() ||
-                    txtCFGdir.Text != regkey.GetValue("CFGdir").ToString() ||
-                    txtLogPath.Text != regkey.GetValue("LogPath").ToString() ||
-                    txtLaunchTimeout.Text != regkey.GetValue("LaunchTimeout").ToString() ||
-                    cbxMinimize.Checked != Convert.ToBoolean(regkey.GetValue("MinimizeOnVMStart")) ||
-                    cbxShowConsole.Checked != Convert.ToBoolean(regkey.GetValue("ShowConsole")) ||
-                    cbxMinimizeTray.Checked != Convert.ToBoolean(regkey.GetValue("MinimizeToTray")) ||
-                    cbxCloseTray.Checked != Convert.ToBoolean(regkey.GetValue("CloseToTray")) || 
-                    cbxLogging.Checked != Convert.ToBoolean(regkey.GetValue("EnableLogging")) ||
-                    cbxGrid.Checked != Convert.ToBoolean(regkey.GetValue("EnableGridLines")));
-
-                return btnApply.Enabled;
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Error: " + ex.Message);
-                return true; //For now let's just return true if anything goes wrong
-            }
-            finally
-            {
-                regkey.Close();
+                ApplicationSettings.RestoreToDefaults(false);
             }
         }
 
         private void cbx_CheckedChanged(object sender, EventArgs e)
         {
-            settingsChanged = CheckForChanges();
+            settingsChanged = ApplicationSettings.CheckForChanges();
         }
 
         private void cbxLogging_CheckedChanged(object sender, EventArgs e)
         {
-            settingsChanged = CheckForChanges();
+            settingsChanged = ApplicationSettings.CheckForChanges();
             txt_TextChanged(sender, e); //Needed so the Apply button doesn't get enabled on an empty logpath textbox. Too lazy to write a duplicated empty check...
             txtLogPath.Enabled = cbxLogging.Checked;
             btnBrowse3.Enabled = cbxLogging.Checked;
@@ -425,6 +282,28 @@ namespace _86boxManager
         {
             lnkGithub.LinkVisited = true;
             Process.Start("https://github.com/86Box/86BoxManager");
+        }
+
+        /// <summary>
+        /// Runs the exporter class code. 
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void ExportSettingsFile_Click(object sender, EventArgs e)
+        {
+            SettingsExporter SEX = new SettingsExporter();
+            SEX.ZipUpRegFile = ExportZipButton.Checked;
+            
+            if (!SEX.ExportSettings())
+            {
+                MessageBox.Show("An error occurred exporting settings.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return; 
+            } 
+            else
+            {
+                MessageBox.Show("Successfully exported settings.", "Success!", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
         }
     }
 }

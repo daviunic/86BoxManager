@@ -42,6 +42,10 @@ namespace _86boxManager
         [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
         public static extern int SendMessage(IntPtr hwnd, int wMsg, IntPtr wParam, ref COPYDATASTRUCT lParam);
 
+        /// <summary>
+        /// Taskbar Grouping for Windows 7+
+        /// </summary>
+        /// <param name="AppID">AppID to use for taskbar grouping.</param>
         [DllImport("shell32.dll", SetLastError = true)]
         static extern void SetCurrentProcessExplicitAppUserModelID([MarshalAs(UnmanagedType.LPWStr)] string AppID);
 
@@ -54,10 +58,15 @@ namespace _86boxManager
         [STAThread]
         static void Main()
         {
+            // Windows Vista+
             if (Environment.OSVersion.Version.Major >= 6)
+            {
                 SetProcessDPIAware();
+                // SetProcessExplicitAppUserModelID doesn't exist on Windows Vista; slightly tweaked this to be easier to use, as I found the code that was here before kinda
+                // threw me off. Plus we shouldn't be calling this on Vista anyway.
+                if (Environment.OSVersion.Version.Minor >= 1) SetCurrentProcessExplicitAppUserModelID(AppID);
+            }
 
-            SetCurrentProcessExplicitAppUserModelID(AppID);
             const string name = "86Box Manager";
 
             //Use a mutex to check if this is the first instance of Manager

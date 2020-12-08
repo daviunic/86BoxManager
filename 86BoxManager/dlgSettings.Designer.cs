@@ -35,6 +35,8 @@
             this.cbxShowConsole = new System.Windows.Forms.CheckBox();
             this.btnDefaults = new System.Windows.Forms.Button();
             this.pnlBottom = new System.Windows.Forms.Panel();
+            this.ExportZipButton = new System.Windows.Forms.CheckBox();
+            this.ExportSettingsFile = new System.Windows.Forms.Button();
             this.lblLaunchTimeout = new System.Windows.Forms.Label();
             this.txtLaunchTimeout = new System.Windows.Forms.TextBox();
             this.tbcSettings = new System.Windows.Forms.TabControl();
@@ -152,6 +154,8 @@
             // pnlBottom
             // 
             this.pnlBottom.BackColor = System.Drawing.SystemColors.Control;
+            this.pnlBottom.Controls.Add(this.ExportZipButton);
+            this.pnlBottom.Controls.Add(this.ExportSettingsFile);
             this.pnlBottom.Controls.Add(this.btnApply);
             this.pnlBottom.Controls.Add(this.btnDefaults);
             this.pnlBottom.Controls.Add(this.btnCancel);
@@ -162,6 +166,29 @@
             this.pnlBottom.Name = "pnlBottom";
             this.pnlBottom.Size = new System.Drawing.Size(709, 52);
             this.pnlBottom.TabIndex = 14;
+            // 
+            // ExportZipButton
+            // 
+            this.ExportZipButton.AutoSize = true;
+            this.ExportZipButton.Checked = true;
+            this.ExportZipButton.CheckState = System.Windows.Forms.CheckState.Checked;
+            this.ExportZipButton.Location = new System.Drawing.Point(154, 16);
+            this.ExportZipButton.Name = "ExportZipButton";
+            this.ExportZipButton.Size = new System.Drawing.Size(79, 23);
+            this.ExportZipButton.TabIndex = 19;
+            this.ExportZipButton.Text = "Zip VMs";
+            this.ExportZipButton.UseVisualStyleBackColor = true;
+            // 
+            // ExportSettingsFile
+            // 
+            this.ExportSettingsFile.Cursor = System.Windows.Forms.Cursors.Default;
+            this.ExportSettingsFile.Location = new System.Drawing.Point(81, 11);
+            this.ExportSettingsFile.Name = "ExportSettingsFile";
+            this.ExportSettingsFile.Size = new System.Drawing.Size(67, 30);
+            this.ExportSettingsFile.TabIndex = 18;
+            this.ExportSettingsFile.Text = "Export";
+            this.ExportSettingsFile.UseVisualStyleBackColor = true;
+            this.ExportSettingsFile.Click += new System.EventHandler(this.ExportSettingsFile_Click);
             // 
             // lblLaunchTimeout
             // 
@@ -570,6 +597,7 @@
             this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.dlgSettings_FormClosing);
             this.Load += new System.EventHandler(this.dlgSettings_Load);
             this.pnlBottom.ResumeLayout(false);
+            this.pnlBottom.PerformLayout();
             this.tbcSettings.ResumeLayout(false);
             this.tabGeneral.ResumeLayout(false);
             this.gbxBehaviour.ResumeLayout(false);
@@ -630,5 +658,7 @@
         private System.Windows.Forms.Label lblVersion;
         private System.Windows.Forms.Label lblDesc;
         private System.Windows.Forms.Label lblTitle;
+        private System.Windows.Forms.Button ExportSettingsFile;
+        private System.Windows.Forms.CheckBox ExportZipButton;
     }
 }
